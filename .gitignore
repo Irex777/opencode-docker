@@ -1,0 +1,26 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Local workspace data
+workspace/
+!workspace/.gitkeep
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.iml
+
+# Logs
+*.log
+logs/
+
+# Volumes (if bind-mounted locally)
+opencode-config/
+opencode-data/

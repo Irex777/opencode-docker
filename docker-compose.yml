@@ -1,0 +1,21 @@
+# For local reference / docker compose usage only.
+# Coolify deploys via the Dockerfile buildpack and does not use this file.
+
+services:
+  opencode-web:
+    build: .
+    ports:
+      - "4096:4096"
+    volumes:
+      - ./workspace:/workspace
+      - opencode-config:/home/opencode/.config
+      - opencode-data:/home/opencode/.local/share
+    environment:
+      OPENCODE_SERVER_PASSWORD: "${OPENCODE_SERVER_PASSWORD:-}"
+      OPENCODE_SERVER_USERNAME: "${OPENCODE_SERVER_USERNAME:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+    restart: unless-stopped
+
+volumes:
+  opencode-config:
+  opencode-data:
