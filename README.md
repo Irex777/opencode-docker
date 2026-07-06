@@ -1,52 +1,61 @@
-# OpenCode Web — Docker / Coolify
+# OpenCode Web — Docker
 
-Container image for running [OpenCode](https://opencode.ai) Web UI (`opencode web`) on Coolify (ARM64 VPS).
+Self-hosted [OpenCode](https://opencode.ai) web UI — browser-based AI coding agent.
 
-## What it does
-
-Starts the OpenCode Web server on `0.0.0.0:4096`:
-
-```
-opencode web --hostname 0.0.0.0 --port 4096
-```
-
-Docs: https://opencode.ai/docs/web/
-
-## Deploy on Coolify
-
-1. Create a new **Application** in Coolify, connect this Git repository.
-2. **Build Pack**: Dockerfile (Coolify auto-detects the `Dockerfile`).
-3. **Port**: `4096`.
-4. Add environment variables (under Coolify → Environment):
-   - `OPENCODE_SERVER_PASSWORD` — password for the web UI.
-   - `OPENCODE_SERVER_USERNAME` — username for the web UI (optional).
-   - `ANTHROPIC_API_KEY` — API key used by OpenCode.
-5. Deploy. The app will be available at your Coolify domain on port `4096`.
-
-## Multi-arch
-
-The Dockerfile detects the build host architecture via `dpkg --print-architecture` and downloads the matching OpenCode release tarball:
-
-- `arm64`  → `opencode-linux-arm64.tar.gz`
-- `amd64`  → `opencode-linux-x64.tar.gz`
-
-OpenCode version is pinned to `v1.17.14` (override at build time with `--build-arg OPENCODE_VERSION=...`).
-
-## Run locally with Docker Compose (optional)
+## Quick Start
 
 ```bash
-export OPENCODE_SERVER_PASSWORD=changeme
-export ANTHROPIC_API_KEY=sk-ant-...
-
-docker compose up -d --build
+cp .env.example .env  # set your passwords and API keys
+docker compose up -d
 ```
 
-Then open http://localhost:4096.
+Open `http://localhost:4096`.
 
-## Files
+## Environment Variables
 
-| File              | Purpose                                                  |
-| ----------------- | -------------------------------------------------------- |
-| `Dockerfile`      | Builds the image (used by Coolify).                      |
-| `entrypoint.sh`   | Runs `opencode web` as the `opencode` user.              |
-| `docker-compose.yml` | Local run reference (not used by Coolify).           |
+| Key | Required | Default | Purpose |
+|-----|----------|---------|---------|
+| `OPENCODE_SERVER_PASSWORD` | **yes** | — | Web UI auth password |
+| `OPENCODE_SERVER_USERNAME` | no | `opencode` | Web UI auth username |
+| `ANTHROPIC_API_KEY` | one provider | — | Anthropic API key |
+| `OPENAI_API_KEY` | one provider | — | OpenAI API key |
+| `GEMINI_API_KEY` | one provider | — | Google AI key |
+
+At least one LLM provider key is required. OpenCode also supports custom OpenAI-compatible endpoints via `opencode.json` config.
+
+## Volumes
+
+| Path | Purpose |
+|------|---------|
+| `/workspace` | Your code repositories |
+| `/home/opencode/.config` | OpenCode config, skills, MCP settings |
+| `/home/opencode/.local/share` | OpenCode data, sessions, auth |
+
+## Custom Provider (OpenAI-compatible)
+
+Mount an `opencode.json` at `/home/opencode/.config/opencode/opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "custom": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "My LLM",
+      "options": {
+        "baseURL": "https://your-endpoint/v1",
+        "apiKey": "{env:MY_API_KEY}"
+      },
+      "models": {
+        "model-name": {
+          "name": "Model Display Name"
+        }
+      }
+    }
+  }
+}
+```
+
+## Architecture
+
+Multi-arch build — auto-detects ARM64 (Coolify VPS) and x64. Pinned to OpenCode v1.17.14.

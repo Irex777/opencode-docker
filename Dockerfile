@@ -1,49 +1,47 @@
 FROM debian:bookworm-slim
 
-# Install runtime dependencies and build tools
+ARG OPENCODE_VERSION=1.17.14
+
+# System packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        bash \
-        curl \
-        git \
-        ca-certificates \
-        ripgrep \
-        jq \
-        openssh-client \
-        zsh \
-        build-essential \
+    bash \
+    build-essential \
+    ca-certificates \
+    curl \
+    git \
+    jq \
+    openssh-client \
+    ripgrep \
+    unzip \
+    zsh \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and install the OpenCode binary (multi-arch aware)
-ARG OPENCODE_VERSION=v1.17.14
-RUN ARCH="$(dpkg --print-architecture)" && \
-    case "$ARCH" in \
-        arm64)   OCPKG_ARCH=arm64 ;; \
-        amd64|x86_64) OCPKG_ARCH=x64 ;; \
-        *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;; \
-    esac && \
-    curl -fsSL -o /tmp/opencode.tar.gz \
-        "https://github.com/anomalyco/opencode/releases/download/${OPENCODE_VERSION}/opencode-linux-${OCPKG_ARCH}.tar.gz" && \
-    mkdir -p /tmp/opencode-extract && \
-    tar -xzf /tmp/opencode.tar.gz -C /tmp/opencode-extract && \
-    install -m 0755 /tmp/opencode-extract/opencode /usr/local/bin/opencode && \
-    rm -rf /tmp/opencode.tar.gz /tmp/opencode-extract
+# Install OpenCode binary (multi-arch)
+ARG TARGETARCH
+RUN ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "arm64" || echo "x64") && \
+    URL="https://github.com/anomalyco/opencode/releases/download/v${OPENCODE_VERSION}/opencode-linux-${ARCH}.tar.gz" && \
+    echo "Downloading OpenCode v${OPENCODE_VERSION} (${ARCH}) from ${URL}" && \
+    curl -fsSL -o /tmp/opencode.tar.gz "${URL}" && \
+    tar -xzf /tmp/opencode.tar.gz -C /usr/local/bin opencode && \
+    rm /tmp/opencode.tar.gz && \
+    chmod +x /usr/local/bin/opencode && \
+    opencode --version
 
-# Create non-root user (UID 1000)
-RUN useradd --uid 1000 --create-home --shell /usr/bin/zsh opencode
+# Create non-root user
+RUN useradd -m -s /bin/bash opencode
 
-# Create directories owned by opencode
-RUN mkdir -p /workspace \
-    /home/opencode/.config/opencode \
-    /home/opencode/.local/share/opencode \
-    && chown -R opencode:opencode /workspace /home/opencode/.config /home/opencode/.local
+# Create directories
+RUN mkdir -p /home/opencode/.config/opencode \
+             /home/opencode/.local/share/opencode \
+             /workspace && \
+    chown -R opencode:opencode /home/opencode /workspace
 
-# Copy entrypoint
-COPY --chmod=0755 entrypoint.sh /usr/local/bin/entrypoint.sh
-
-EXPOSE 4096
-WORKDIR /workspace
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 USER opencode
+WORKDIR /workspace
 
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["opencode", "web", "--hostname", "0.0.0.0", "--port", "4096"]
+EXPOSE 4096
+
+ENTRYPOINT ["/entrypoint.sh"]
