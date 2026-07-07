@@ -19,38 +19,44 @@ if [ -n "${GITHUB_TOKEN:-}" ]; then
     "https://github.com/"
 fi
 
-# ---- clone / update requested repos into /workspace ----
+# ---- clone / update requested repos into /workspace (in the background) ----
 # GITHUB_REPOS is a space/newline-separated list of specs:
 #   owner/repo          -> default branch
 #   owner/repo@branch   -> specific branch
+# Runs in a subshell so opencode web starts immediately; repos populate
+# asynchronously and a single failed clone never aborts the loop.
 if [ -n "${GITHUB_REPOS:-}" ]; then
-  for spec in $GITHUB_REPOS; do
-    [ -z "$spec" ] && continue
-    repo="${spec%%@*}"
-    branch=""
-    case "$spec" in
-      *@*) branch="${spec##*@}" ;;
-    esac
-    name="${repo##*/}"; name="${name%.git}"
-    dest="${WORKSPACE}/${name}"
-    if [ -d "${dest}/.git" ]; then
-      echo "[opencode] updating ${name}…"
-      git -C "$dest" fetch --all --prune >/dev/null 2>&1 || true
-      if [ -n "$branch" ]; then
-        git -C "$dest" checkout "$branch" >/dev/null 2>&1 || true
-      fi
-      git -C "$dest" pull --ff-only >/dev/null 2>&1 || true
-    else
-      echo "[opencode] cloning ${repo}${branch:+ @ ${branch}}…"
-      if git clone --recurse-submodules "https://github.com/${repo}" "$dest" 2>/dev/null; then
+  (
+    set +e
+    for spec in $GITHUB_REPOS; do
+      [ -z "$spec" ] && continue
+      repo="${spec%%@*}"
+      branch=""
+      case "$spec" in
+        *@*) branch="${spec##*@}" ;;
+      esac
+      name="${repo##*/}"; name="${name%.git}"
+      dest="${WORKSPACE}/${name}"
+      if [ -d "${dest}/.git" ]; then
+        echo "[opencode] updating ${name}…"
+        git -C "$dest" fetch --all --prune >/dev/null 2>&1 || true
         if [ -n "$branch" ]; then
           git -C "$dest" checkout "$branch" >/dev/null 2>&1 || true
         fi
+        git -C "$dest" pull --ff-only >/dev/null 2>&1 || true
       else
-        echo "[opencode] WARNING: could not clone ${repo}"
+        echo "[opencode] cloning ${repo}${branch:+ @ ${branch}}…"
+        if git clone --recurse-submodules "https://github.com/${repo}" "$dest" 2>/dev/null; then
+          if [ -n "$branch" ]; then
+            git -C "$dest" checkout "$branch" >/dev/null 2>&1 || true
+          fi
+        else
+          echo "[opencode] WARNING: could not clone ${repo}"
+        fi
       fi
-    fi
-  done
+    done
+    echo "[opencode] repo sync complete"
+  ) >> /tmp/repo-sync.log 2>&1 &
 fi
 
 cd "$WORKSPACE"
