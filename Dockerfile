@@ -39,6 +39,10 @@ RUN mkdir -p /home/opencode/.config/opencode \
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# Copy default OpenCode config (GLM-5.2 via Z.AI Anthropic endpoint)
+COPY opencode.json /home/opencode/.config/opencode/opencode.json
+RUN chown opencode:opencode /home/opencode/.config/opencode/opencode.json
+
 USER opencode
 WORKDIR /workspace
 
