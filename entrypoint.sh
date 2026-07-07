@@ -26,6 +26,7 @@ fi
 # Runs in a subshell so opencode web starts immediately; repos populate
 # asynchronously and a single failed clone never aborts the loop.
 if [ -n "${GITHUB_REPOS:-}" ]; then
+  echo "[opencode] starting background repo sync ($(echo "$GITHUB_REPOS" | wc -w | tr -d ' ') repos)…"
   (
     set +e
     for spec in $GITHUB_REPOS; do
@@ -56,7 +57,7 @@ if [ -n "${GITHUB_REPOS:-}" ]; then
       fi
     done
     echo "[opencode] repo sync complete"
-  ) >> /tmp/repo-sync.log 2>&1 &
+  ) &
 fi
 
 cd "$WORKSPACE"
