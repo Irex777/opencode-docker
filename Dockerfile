@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     jq \
     openssh-client \
+    perl \
     ripgrep \
     unzip \
     zsh \
@@ -26,6 +27,17 @@ RUN ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "arm64" || echo "x64") && \
     rm /tmp/opencode.tar.gz && \
     chmod +x /usr/local/bin/opencode && \
     opencode --version
+
+# Patch the embedded web client. OpenCode's JS defaults to http://localhost:4096
+# when window.location.hostname contains the substring "opencode.ai" (so the
+# official hosted UI talks to a user's local server). A self-hosted domain like
+# opencode.example.com matches that substring and the browser wrongly tries
+# localhost, breaking the app. Neutralize the check with a same-length byte swap
+# (binary stays byte-for-byte valid). The assertions make the build FAIL loudly
+# if a future opencode version no longer ships this exact pattern.
+RUN perl -0777 -pi -e 's/includes\("opencode\.ai"\)/includes("opencode.zz")/' /usr/local/bin/opencode \
+ && grep -aq 'includes("opencode.zz")' /usr/local/bin/opencode \
+ && ! grep -aq 'includes("opencode.ai")' /usr/local/bin/opencode
 
 # Create non-root user
 RUN useradd -m -s /bin/bash opencode

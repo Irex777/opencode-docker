@@ -4,15 +4,23 @@ services:
     ports:
       - "4096:4096"
     volumes:
-      - ./workspace:/workspace
+      # Named volume (not a bind mount) so the directory is owned by the
+      # in-image `opencode` user and git clones succeed without permission errors.
+      - opencode-workspace:/workspace
       - opencode-config:/home/opencode/.config
       - opencode-data:/home/opencode/.local/share
     environment:
       - OPENCODE_SERVER_PASSWORD=${OPENCODE_SERVER_PASSWORD}
       - OPENCODE_SERVER_USERNAME=${OPENCODE_SERVER_USERNAME:-opencode}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # --- git project integration (entrypoint clones these into /workspace) ---
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - GITHUB_REPOS=${GITHUB_REPOS:-}
+      - GIT_USER_NAME=${GIT_USER_NAME:-}
+      - GIT_USER_EMAIL=${GIT_USER_EMAIL:-}
     restart: unless-stopped
 
 volumes:
+  opencode-workspace:
   opencode-config:
   opencode-data:
